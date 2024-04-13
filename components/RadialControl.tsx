@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, memo, useRef, useCallback } from "react";
 import {
   Image,
   StatusBar,
@@ -32,13 +32,54 @@ function toDeg(radians: number) {
 }
 
 type NotchProps = {
-  onValueChange: (value: number) => void;
+  onValueChange?: (value: number) => void;
+  onFingerUp?: (value: number) => void;
   highlightAllPrevious?: boolean;
   num_notches?: number;
   scale?: number;
+  start_notch?: number;
 };
 
-export const Dial = ({onValueChange, highlightAllPrevious = true, num_notches = 8, scale = 1.0} : NotchProps) => {
+export const Dial = memo(({onValueChange, onFingerUp, highlightAllPrevious = true, num_notches = 8, scale = 1.0, start_notch = 1} : NotchProps) => {
+  const useDebouncedCallback = (callback: (value: number) => void, delay: number) => {
+    // Use useRef to hold the timer ID, which does not trigger re-renders
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>();
+  
+    // Cleanup function to clear the timer
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) {
+                clearTimeout(timerRef.current);
+            }
+        };
+    }, []); // Ensure this runs only once when the component unmounts
+  
+    // The debounced function
+    const debouncedCallback = useCallback((value: number) => {
+        // Clear the existing timer every time the function is called
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+        }
+  
+        // Set a new timer
+        timerRef.current = setTimeout(() => {
+            callback(value);
+        }, delay);
+    }, [callback, delay]); // Dependencies include the callback and delay
+  
+    return debouncedCallback;
+  };
+  
+  const handleDialChange = useDebouncedCallback((value) => {
+    if(onValueChange)
+      onValueChange(value);
+  }, 300);
+
+  const handleFingerUp = useDebouncedCallback((value) => {
+    if(onFingerUp)
+      onFingerUp(value);
+  }, 1000);
+
   const D = 170; //170
   const R = D / 2;
 
@@ -48,7 +89,7 @@ export const Dial = ({onValueChange, highlightAllPrevious = true, num_notches = 
 
   const sweeping_angle = angle * 2;
   const last_angle = 360 - sweeping_angle / 2;
-  const start_angle = sweeping_angle / 2;
+  const start_angle = sweeping_angle / 2 + (start_notch - 1) * angle;
 
   // The space between the circle and the notches
   const distanceFactor = 237.09/D + 0.15;
@@ -228,7 +269,9 @@ export const Dial = ({onValueChange, highlightAllPrevious = true, num_notches = 
           currentAngle.value = nextAngle;
           previousChangedAngle.value = angleDiff;
           //Call the onValueChange function with the notch number
-          runOnJS(onValueChange)(nextAngle/angle);
+          // runOnJS(onValueChange)(nextAngle/angle);
+          if(onValueChange)
+            runOnJS(handleDialChange)(currentAngle.value/angle);
         }
       } else {
         if (changeAngleFactor === notches - 1) {
@@ -243,6 +286,11 @@ export const Dial = ({onValueChange, highlightAllPrevious = true, num_notches = 
       previousChangedAngle.value = 0;
       finalAngleNotReached.value = 1;
       runOnJS(stopSound)();
+    })
+    .onTouchesUp(() => {
+      //Call the onValueChange function with the notch number
+      if(onFingerUp)
+        runOnJS(handleFingerUp)(currentAngle.value/angle);
     });
 
   const indicatorAnimationStyle = useAnimatedStyle(() => {
@@ -267,7 +315,7 @@ export const Dial = ({onValueChange, highlightAllPrevious = true, num_notches = 
   });
   return (
     <SafeAreaView
-      style={tailwind.style("flex-1 items-center justify-end pt-50")}
+      style={tailwind.style("flex-1 items-center justify-end pt-30")}
     >
       <StatusBar barStyle={"dark-content"} />
       <GestureDetector gesture={panGesture}>
@@ -310,4 +358,4 @@ export const Dial = ({onValueChange, highlightAllPrevious = true, num_notches = 
       </GestureDetector>
     </SafeAreaView>
   );
-};
+});
