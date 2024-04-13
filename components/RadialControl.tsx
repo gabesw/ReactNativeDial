@@ -35,9 +35,10 @@ type NotchProps = {
   onValueChange: (value: number) => void;
   highlightAllPrevious?: boolean;
   num_notches?: number;
+  scale?: number;
 };
 
-export const Dial = ({onValueChange, highlightAllPrevious = true, num_notches = 8} : NotchProps) => {
+export const Dial = ({onValueChange, highlightAllPrevious = true, num_notches = 8, scale = 1.0} : NotchProps) => {
   const D = 170; //170
   const R = D / 2;
 
@@ -266,7 +267,7 @@ export const Dial = ({onValueChange, highlightAllPrevious = true, num_notches = 
   });
   return (
     <SafeAreaView
-      style={tailwind.style("flex-1 items-center justify-end pb-40")}
+      style={tailwind.style("flex-1 items-center justify-end pt-50")}
     >
       <StatusBar barStyle={"dark-content"} />
       <GestureDetector gesture={panGesture}>
@@ -276,7 +277,7 @@ export const Dial = ({onValueChange, highlightAllPrevious = true, num_notches = 
               `h-[${D}px] w-[${D}px] rounded-full bg-white shadow-lg flex justify-center items-center`,
             ),
             {
-              transform: [{ rotate: "90deg" }],
+              transform: [{ rotate: "90deg" }, {scale : scale}],
             },
           ]}
         >
